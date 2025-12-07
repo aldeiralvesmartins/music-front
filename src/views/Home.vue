@@ -6,7 +6,6 @@ import { usePlaylistsStore } from '../stores/playlists';
 
 const player = usePlayer();
 const playlistsStore = usePlaylistsStore();
-const showMoreInfo = ref(false);
 const progress = ref(0);
 const currentSong = ref<any>(null);
 const isPlaying = ref(false);
@@ -55,48 +54,11 @@ const filteredPlaylists = computed(() => {
   );
 });
 
-const formatDate = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return 'Data inválida';
-  }
-};
-
-const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-const parseDuration = (duration: string): number => {
-  if (!duration) return 180; // Fallback: 3 minutos
-
-  try {
-    const parts = duration.split(':');
-    if (parts.length === 2) {
-      return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-    }
-  } catch {
-    return 180;
-  }
-  return 180;
-};
-
-const getSongDuration = (song: any): number => {
-  return parseDuration(song?.duration);
-};
-
 const togglePlayPause = () => {
   if (isPlaying.value) {
     player.pause();
   } else {
-    player.resume();
+    player.play();
   }
 };
 
@@ -111,16 +73,7 @@ const skipNext = () => {
   }
 };
 
-const skipPrevious = () => {
-  const list = player.playlist.value || [];
-  const current = currentSong.value;
-  if (!current || list.length === 0) return;
-
-  const idx = list.findIndex(s => s.id === current.id);
-  if (idx > 0) {
-    player.playSong(list[idx - 1]);
-  }
-};
+// removed unused skipPrevious
 
 const updateProgress = () => {
   if (isPlaying.value && progress.value < 100) {
@@ -575,7 +528,7 @@ onUnmounted(() => {
                 </div>
                 <div class="playlist-info">
                   <span class="playlist-name">{{ playlist.name }}</span>
-                  <span class="playlist-song-count">{{ playlist.song_count || 0 }} músicas</span>
+                  <span class="playlist-song-count">{{ playlist.songs_count || 0 }} músicas</span>
                 </div>
               </div>
               <div class="playlist-item-right">
