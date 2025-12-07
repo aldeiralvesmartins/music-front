@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { authApi, type User, type LoginCredentials, type RegisterData } from '../api/auth';
+import { useRadioStore } from './radio';
 
 const getInitialUser = () => {
   const storedUser = localStorage.getItem('user');
@@ -58,6 +59,11 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true;
       const userData = await authApi.getCurrentUser();
       setUser(userData);
+      // Claim/atualiza sessão de rádio para o usuário autenticado
+      try {
+        const radio = useRadioStore();
+        await radio.init();
+      } catch {}
       return userData;
     } catch (error) {
       setUser(null);
@@ -72,6 +78,11 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true;
       const response = await authApi.login(credentials);
       setUser(response.user);
+      // Claim/atualiza sessão de rádio após login
+      try {
+        const radio = useRadioStore();
+        await radio.init();
+      } catch {}
       return response;
     } catch (error) {
       setUser(null);
@@ -86,6 +97,11 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true;
       const response = await authApi.register(data);
       setUser(response.user);
+      // Claim/atualiza sessão de rádio após registro
+      try {
+        const radio = useRadioStore();
+        await radio.init();
+      } catch {}
       return response;
     } catch (error) {
       setUser(null);
@@ -98,6 +114,12 @@ export const useAuthStore = defineStore('auth', () => {
   const logout = async () => {
     try {
       loading.value = true;
+      // Salva progresso final antes de desconectar
+      try {
+        const radio = useRadioStore();
+        await radio.flushProgress();
+        radio.stopHeartbeat();
+      } catch {}
       await authApi.logout();
     } catch (error) {
       console.error('Logout error:', error);

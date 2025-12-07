@@ -13,7 +13,7 @@ export interface Category {
 }
 
 export interface Song {
-  id: number;
+  id: string; // backend uses string IDs
   title: string;
   url: string;
   cover_url?: string;
@@ -21,9 +21,9 @@ export interface Song {
   duration?: number;
   duration_seconds?: number;
   anuncio?: boolean;
-  category_id: number;
+  category_id: string;
   category?: {
-    id: number;
+    id: string;
     name: string;
     slug: string;
   };
@@ -131,21 +131,21 @@ export const musicApi = {
     return response.data;
   },
 
-  getSongById: async (id: number): Promise<Song> => {
+  getSongById: async (id: string): Promise<Song> => {
     const response = await api.get<Song>(`/songs/${id}`);
     return response.data;
   },
 
   uploadSong: async (
     title: string,
-    categoryId: number,
+    categoryId: string,
     file: File,
     onProgress?: (progress: number) => void,
     options: { anuncio?: boolean; company_id?: string } = {}
   ): Promise<UploadResponse> => {
     const formData = new FormData();
     formData.append('title', title);
-    formData.append('category_id', categoryId.toString());
+    formData.append('category_id', categoryId);
     formData.append('file', file);
 
     if (options.anuncio) {
@@ -169,7 +169,7 @@ export const musicApi = {
     return response.data;
   },
 
-  getPlayUrl: (id: number): string => {
+  getPlayUrl: (id: string): string => {
     const token = localStorage.getItem('auth_token');
     return `${API_BASE_URL}/songs/${id}/play${token ? `?token=${token}` : ''}`;
   },

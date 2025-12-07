@@ -1,4 +1,5 @@
 import { ref, computed, watch } from 'vue';
+import { useRadioStore } from '../stores/radio';
 import type { Song, PaginationMeta } from '../api/music';
 import { musicApi } from '../api/music';
 
@@ -16,6 +17,7 @@ const audio = new Audio();
 let currentBlobUrl: string | null = null;
 
 export const usePlayer = () => {
+  const radio = useRadioStore();
   const progress = computed(() => {
     if (duration.value === 0) return 0;
     return (currentTime.value / duration.value) * 100;
@@ -104,6 +106,22 @@ export const usePlayer = () => {
     }
   }
 
+  (async () => {
+    try {
+      if (!(radio as any).session?.value) {
+        await radio.init();
+      }
+      // O watcher abaixo cuidará de carregar e retomar a faixa atual quando disponível
+    } catch {}
+  })();
+
+  watch(() => (radio.currentSong as any)?.value, async (val) => {
+    if (val) {
+      const start = Number((radio as any).session?.value?.current_track_position || 0);
+      await playSong(val as any, start > 0 ? start : undefined);
+    }
+  });
+
   async function playSong(song: Song, startTime?: number) {
     if (currentSong.value?.id === song.id && !audio.paused) {
       pause();
@@ -115,6 +133,13 @@ export const usePlayer = () => {
     currentTime.value = 0;
 
     currentSong.value = song;
+    // Sincroniza track atual com a sessão de rádio para garantir retomada correta
+    try {
+      const radioAny = radio as any;
+      if (radioAny?.session?.value?.current_track_id !== song.id) {
+        radioAny.session.value.current_track_id = song.id;
+      }
+    } catch {}
 
     if (currentBlobUrl) {
       URL.revokeObjectURL(currentBlobUrl);
@@ -141,6 +166,18 @@ export const usePlayer = () => {
 
       audio.src = blobUrl;
       audio.load();
+
+      // Aguarda metadados antes de aplicar seek, garantindo retomada correta
+      await new Promise<void>((resolve) => {
+        if (audio.readyState >= 1 && !isNaN(audio.duration)) {
+          resolve();
+          return;
+        }
+        const handler = () => {
+          resolve();
+        };
+        audio.addEventListener('loadedmetadata', handler, { once: true });
+      });
 
       if (startTime !== undefined && startTime > 0) {
         audio.currentTime = startTime;
@@ -225,6 +262,7 @@ export const usePlayer = () => {
 
   audio.addEventListener('timeupdate', () => {
     currentTime.value = audio.currentTime;
+    try { radio.setCurrentProgress(currentTime.value); } catch {}
     if (currentSong.value && isPlaying.value) {
       if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
         try {
@@ -257,7 +295,17 @@ export const usePlayer = () => {
   });
 
   audio.addEventListener('ended', () => {
-    next();
+    (async () => {
+      try {
+        await radio.markPlayed(Math.floor(duration.value || 0));
+        const item = await radio.fetchNext();
+        if (item && (item as any).song) {
+          await playSong((item as any).song as any);
+          return;
+        }
+      } catch {}
+      next();
+    })();
   });
 
   watch(volume, (newVolume) => {
