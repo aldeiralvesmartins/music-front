@@ -82,7 +82,7 @@ export const songsApi = {
     return btoa(JSON.stringify(payload));
   },
 
-  getById: async (id: number): Promise<Song> => {
+  getById: async (id: string): Promise<Song> => {
     const response = await api.get<Song>(`/songs/${id}`);
     return response.data;
   },

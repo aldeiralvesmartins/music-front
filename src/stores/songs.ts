@@ -24,7 +24,7 @@ export const useSongsStore = defineStore('songs', () => {
     }
   };
 
-  const fetchSongById = async (id: number) => {
+  const fetchSongById = async (id: string) => {
     try {
       loading.value = true;
       error.value = null;
@@ -91,7 +91,7 @@ export const useSongsStore = defineStore('songs', () => {
     }
   };
 
-  const getPlayUrl = (id: number): string => {
+  const getPlayUrl = (id: string): string => {
     return songsApi.getPlayUrl(id);
   };
 
