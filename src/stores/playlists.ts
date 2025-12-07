@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { playlistsApi, type Playlist, type CreatePlaylistData, type UpdatePlaylistData } from '../api/playlists';
-import type { Song } from '../api/songs';
+import type { Song } from '../api/music';
 
 export const usePlaylistsStore = defineStore('playlists', () => {
   const playlists = ref<Playlist[]>([]);
@@ -109,7 +109,7 @@ export const usePlaylistsStore = defineStore('playlists', () => {
     }
   };
 
-  const addSongsToPlaylist = async (id: string, songIds: number[]) => {
+  const addSongsToPlaylist = async (id: string, songIds: string[]) => {
     try {
       loading.value = true;
       error.value = null;
@@ -123,7 +123,7 @@ export const usePlaylistsStore = defineStore('playlists', () => {
     }
   };
 
-  const removeSongFromPlaylist = async (id: string, songId: number) => {
+  const removeSongFromPlaylist = async (id: string, songId: string) => {
     try {
       loading.value = true;
       error.value = null;

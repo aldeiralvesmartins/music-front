@@ -1,5 +1,5 @@
 import api from './axios';
-import type { Song } from './songs';
+import type { Song } from './music';
 
 export interface Playlist {
   id: string;
@@ -22,7 +22,7 @@ export interface UpdatePlaylistData {
 }
 
 export interface AddSongsData {
-  song_ids: number[];
+  song_ids: string[];
 }
 
 export const playlistsApi = {
@@ -55,11 +55,11 @@ export const playlistsApi = {
     return response.data.songs;
   },
 
-  addSongs: async (id: string, songIds: number[]): Promise<void> => {
+  addSongs: async (id: string, songIds: string[]): Promise<void> => {
     await api.post(`/playlists/${id}/songs`, { song_ids: songIds });
   },
 
-  removeSong: async (id: string, songId: number): Promise<void> => {
+  removeSong: async (id: string, songId: string): Promise<void> => {
     await api.delete(`/playlists/${id}/songs/${songId}`);
   },
 };

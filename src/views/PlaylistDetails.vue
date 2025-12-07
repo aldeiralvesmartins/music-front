@@ -5,7 +5,7 @@ import { usePlaylistsStore } from '../stores/playlists';
 import { useSongsStore } from '../stores/songs';
 import { useCategoriesStore } from '../stores/categories';
 import { usePlayer } from '../composables/usePlayer';
-import type { Song } from '../api/songs';
+import type { Song } from '../api/music';
 
 const route = useRoute();
 const router = useRouter();
@@ -20,7 +20,7 @@ const editFormData = ref({
   name: '',
   description: '',
 });
-const selectedSongs = ref<Set<number>>(new Set());
+const selectedSongs = ref<Set<string>>(new Set());
 const searchQuery = ref('');
 const selectedCategoryId = ref<number | null>(null);
 
@@ -140,7 +140,7 @@ const closeAddSongsModal = () => {
   songsStore.resetPagination();
 };
 
-const toggleSongSelection = (songId: number) => {
+const toggleSongSelection = (songId: string) => {
   if (selectedSongs.value.has(songId)) {
     selectedSongs.value.delete(songId);
   } else {
@@ -162,7 +162,7 @@ const handleAddSongs = async () => {
   }
 };
 
-const handleRemoveSong = async (songId: number) => {
+const handleRemoveSong = async (songId: string) => {
   if (!confirm('Remover esta música da playlist?')) return;
 
   try {

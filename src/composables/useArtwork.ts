@@ -6,7 +6,7 @@ export function useArtwork() {
   const artworkUrl = ref<string | null>(null);
   const loading = ref(false);
 
-  const extractArtwork = async (songId: number): Promise<string | null> => {
+  const extractArtwork = async (songId: string): Promise<string | null> => {
     try {
       loading.value = true;
 

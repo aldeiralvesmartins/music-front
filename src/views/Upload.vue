@@ -371,7 +371,7 @@ const handleUpload = async () => {
       try {
         await musicApi.uploadSong(
           fileData.title,
-          categoryId.value,
+          String(categoryId.value),
           fileData.file,
           (p: number) => {
             fileData.progress = p;

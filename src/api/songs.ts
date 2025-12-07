@@ -3,16 +3,16 @@ import api from './axios';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 export interface Song {
-  id: number;
+  id: string;
   title: string;
-  category_id: number;
+  category_id: string;
   url: string;
   duration?: number;
   duration_seconds?: number;
   size_mb?: number;
   anuncio?: boolean;
   category?: {
-    id: number;
+    id: string;
     name: string;
     slug: string;
   };
@@ -40,7 +40,7 @@ export interface NextTokenPayload {
 
 export interface UploadSongData {
   title: string;
-  category_id: number;
+  category_id: string;
   file: File;
 }
 
@@ -87,7 +87,7 @@ export const songsApi = {
     return response.data;
   },
 
-  getByCategory: async (categoryId: number | string, params: {
+  getByCategory: async (categoryId: string | number, params: {
     page?: number;
     per_page?: number;
     ads_every?: number;
@@ -113,14 +113,14 @@ export const songsApi = {
     return response.data;
   },
 
-  play: async (id: number): Promise<Blob> => {
+  play: async (id: string): Promise<Blob> => {
     const response = await api.get(`/songs/${id}/play`, {
       responseType: 'blob',
     });
     return response.data;
   },
 
-  getPlayUrl: (id: number): string => {
+  getPlayUrl: (id: string): string => {
     const token = localStorage.getItem('auth_token');
     return `${API_BASE_URL}/songs/${id}/play${token ? `?token=${token}` : ''}`;
   },
