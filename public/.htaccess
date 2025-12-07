@@ -1,0 +1,19 @@
+# Use Apache mod_rewrite to serve the SPA (Vue + Vite) index.html for non-file routes
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Adjust the base if your app is served from a subpath, e.g. /mus/
+  # RewriteBase /
+
+  # Allow existing files/directories
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else goes to index.html (client-side routing)
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Fallback if mod_rewrite is not available
+<IfModule !mod_rewrite.c>
+  ErrorDocument 404 /index.html
+</IfModule>
