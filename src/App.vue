@@ -357,6 +357,7 @@ const isAuthPage = computed(() => {
   flex: 1;
   margin-left: 72px;
   margin-top: 64px;
+  margin-bottom: 96px; /* Espaço para o MusicPlayer no desktop */
   width: calc(100% - 72px);
   overflow-y: auto;
   transition: all 0.3s;
@@ -371,6 +372,7 @@ const isAuthPage = computed(() => {
   display: none;
 }
 
+/* Ajuste para dispositivos móveis */
 @media (max-width: 768px) {
   .top-bar {
     left: 0 !important;
@@ -386,6 +388,20 @@ const isAuthPage = computed(() => {
   .main-content {
     margin-left: 0 !important;
     width: 100% !important;
+    margin-bottom: 200px; /* ESPAÇO MAIOR PARA MOBILE (player + navbar) */
+  }
+
+  /* Para telas muito pequenas (smartphones menores) */
+  @media (max-height: 700px) {
+    .main-content {
+      margin-bottom: 180px;
+    }
+  }
+
+  @media (max-height: 600px) {
+    .main-content {
+      margin-bottom: 160px;
+    }
   }
 
   .mobile-nav {
@@ -433,6 +449,13 @@ const isAuthPage = computed(() => {
 
   .dark .mobile-nav-item.active {
     color: #34d399;
+  }
+}
+
+/* Para tablets (tamanho intermediário) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .main-content {
+    margin-bottom: 100px; /* Espaço intermediário para tablets */
   }
 }
 </style>

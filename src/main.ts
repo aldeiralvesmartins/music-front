@@ -4,6 +4,7 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import { useRadioStore } from './stores/radio'
+import { usePlayer } from './composables/usePlayer'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -16,5 +17,7 @@ try {
   const radio = useRadioStore()
   // Não bloquear o boot; dispara e deixa a store cuidar do progresso/seek
   radio.init().catch(() => {})
+  // Bootstrap global do player para iniciar a música em qualquer rota
+  usePlayer()
 } catch {}
 app.mount('#app')

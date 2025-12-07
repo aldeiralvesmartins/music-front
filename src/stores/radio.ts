@@ -138,6 +138,14 @@ export const useRadioStore = defineStore('radio', () => {
       if (session.value.current_track_id) {
         const song = await musicApi.getSongById(session.value.current_track_id)
         currentSong.value = song
+      } else if ((queue.value?.length || 0) > 0) {
+        // Fallback: if backend didn't persist current_track_id but we have a queue, resume from the first item
+        const first = queue.value.find(i => i.type === 'song')
+        if (first) {
+          const song = await musicApi.getSongById(first.id)
+          currentSong.value = song
+          session.value.current_track_id = song.id
+        }
       }
     } catch {}
 
@@ -159,7 +167,7 @@ export const useRadioStore = defineStore('radio', () => {
         const payloadQueue = queue.value.slice(0, 50)
         await radioApi.saveProgress({
           session_id: session.value.id,
-          track_id: session.value.current_track_id || undefined,
+          track_id: (currentSong.value?.id as string | undefined) || session.value.current_track_id || undefined,
           position: Number(session.value.current_track_position || 0),
           play_queue: payloadQueue,
         })
@@ -186,7 +194,7 @@ export const useRadioStore = defineStore('radio', () => {
       if (!session.value) return
       await radioApi.saveProgress({
         session_id: session.value.id,
-        track_id: session.value.current_track_id || undefined,
+        track_id: (currentSong.value?.id as string | undefined) || session.value.current_track_id || undefined,
         position: Number(session.value.current_track_position || 0),
         play_queue: queue.value.slice(0, 50),
       })

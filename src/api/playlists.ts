@@ -14,6 +14,7 @@ export interface Playlist {
 export interface CreatePlaylistData {
   name: string;
   description?: string;
+  company_id?: number | string;
 }
 
 export interface UpdatePlaylistData {
@@ -37,6 +38,19 @@ export const playlistsApi = {
   },
 
   create: async (data: CreatePlaylistData): Promise<Playlist> => {
+    try {
+      if (data.company_id == null) {
+        const raw = localStorage.getItem('user');
+        if (raw) {
+          try {
+            const user = JSON.parse(raw) as { company_id?: number | string };
+            if (user && user.company_id != null) {
+              data = { ...data, company_id: user.company_id };
+            }
+          } catch {}
+        }
+      }
+    } catch {}
     const response = await api.post<Playlist>('/playlists', data);
     return response.data;
   },

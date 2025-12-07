@@ -15,6 +15,9 @@ const isLoadingMore = ref(false);
 const hasMoreSongs = ref(true);
 const audio = new Audio();
 let currentBlobUrl: string | null = null;
+// Evita múltiplos avanços em sequência (double triggers)
+let isAdvancing = false;
+let lastAdvanceAt = 0;
 
 export const usePlayer = () => {
   const radio = useRadioStore();
@@ -30,6 +33,39 @@ export const usePlayer = () => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  // Autoplay unlock helpers
+  let pendingAutoplayHandler: ((e: Event) => void) | null = null;
+  const autoplayUnlocked = ref(localStorage.getItem('autoplay_unlocked') === '1');
+  let savedVolumeBeforeMute = 1;
+  function attachAutoplayUnlock() {
+    detachAutoplayUnlock();
+    pendingAutoplayHandler = async () => {
+      try {
+        autoplayUnlocked.value = true;
+        localStorage.setItem('autoplay_unlocked', '1');
+        // Unmute and restore previous volume
+        audio.muted = false;
+        audio.volume = savedVolumeBeforeMute;
+        if (audio.paused && audio.src) {
+          await audio.play();
+          isPlaying.value = true;
+        }
+        updateMediaSession();
+      } catch {}
+      detachAutoplayUnlock();
+    };
+    window.addEventListener('pointerdown', pendingAutoplayHandler, { once: true });
+    window.addEventListener('keydown', pendingAutoplayHandler, { once: true });
+    window.addEventListener('touchstart', pendingAutoplayHandler, { once: true });
+  }
+  function detachAutoplayUnlock() {
+    if (!pendingAutoplayHandler) return;
+    window.removeEventListener('pointerdown', pendingAutoplayHandler as any);
+    window.removeEventListener('keydown', pendingAutoplayHandler as any);
+    window.removeEventListener('touchstart', pendingAutoplayHandler as any);
+    pendingAutoplayHandler = null;
   }
 
   function setPlaylist(songs: Song[], meta?: PaginationMeta) {
@@ -106,13 +142,41 @@ export const usePlayer = () => {
     }
   }
 
-  (async () => {
+  // Bootstrap global para garantir início do player em qualquer rota
+  let bootstrapped = false;
+  async function ensurePlaybackBoot() {
+    if (bootstrapped) return;
+    bootstrapped = true;
     try {
       if (!(radio as any).session?.value) {
         await radio.init();
       }
-      // O watcher abaixo cuidará de carregar e retomar a faixa atual quando disponível
+      // Garanta volume no máximo desde o início
+      try {
+        volume.value = 1;
+        audio.muted = false;
+        audio.volume = 1;
+      } catch {}
+      // Se não houver música atual após init (sem sessão prévia), carrega uma playlist inicial
+      if (!currentSong.value) {
+        try {
+          const response = await musicApi.getAllSongsPaginated({
+            page: 1,
+            per_page: 30,
+            ads_every: 3,
+          } as any);
+          if ((response as any)?.data?.length > 0) {
+            setPlaylist((response as any).data, (response as any).meta);
+            await playSong((response as any).data[0]);
+          }
+        } catch {}
+      }
     } catch {}
+  }
+
+  // Executa o bootstrap sem bloquear o restante do app
+  (async () => {
+    ensurePlaybackBoot();
   })();
 
   watch(() => (radio.currentSong as any)?.value, async (val) => {
@@ -123,8 +187,11 @@ export const usePlayer = () => {
   });
 
   async function playSong(song: Song, startTime?: number) {
-    if (currentSong.value?.id === song.id && !audio.paused) {
-      pause();
+    // Se for a mesma música: se já está tocando, não faz nada; se estiver pausado, apenas retoma
+    if (currentSong.value?.id === song.id) {
+      if (audio.paused) {
+        play();
+      }
       return;
     }
 
@@ -150,11 +217,10 @@ export const usePlayer = () => {
       const token = localStorage.getItem('auth_token');
       const url = musicApi.getPlayUrl(song.id);
 
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(url, { headers });
 
       if (!response.ok) {
         throw new Error('Failed to load audio');
@@ -184,10 +250,23 @@ export const usePlayer = () => {
         currentTime.value = startTime;
       }
 
-      await audio.play();
-      isPlaying.value = true;
-
-      updateMediaSession();
+      try {
+        audio.muted = false;
+        audio.volume = volume.value;
+        await audio.play();
+        isPlaying.value = true;
+        updateMediaSession();
+        if (!autoplayUnlocked.value) {
+          attachAutoplayUnlock();
+        }
+      } catch (playErr: any) {
+        // Handle browser autoplay policy: defer play until first user gesture
+        if (playErr && (playErr.name === 'NotAllowedError' || /NotAllowedError/i.test(String(playErr)))) {
+          attachAutoplayUnlock();
+        } else {
+          throw playErr;
+        }
+      }
     } catch (error) {
       console.error('Error playing song:', error);
       isPlaying.value = false;
@@ -196,6 +275,10 @@ export const usePlayer = () => {
 
   function play() {
     if (audio.src) {
+      try {
+        audio.muted = false;
+        audio.volume = Math.max(0, Math.min(1, volume.value || 1));
+      } catch {}
       audio.play();
       isPlaying.value = true;
       if ('mediaSession' in navigator) {
@@ -221,7 +304,17 @@ export const usePlayer = () => {
   }
 
   function next() {
-    if (!currentSong.value || playlist.value.length === 0) return;
+    const now = Date.now();
+    if (isAdvancing || (now - lastAdvanceAt) < 700) {
+      return;
+    }
+    isAdvancing = true;
+    lastAdvanceAt = now;
+
+    if (!currentSong.value || playlist.value.length === 0) {
+      isAdvancing = false;
+      return;
+    }
 
     const currentIndex = playlist.value.findIndex(s => s.id === currentSong.value!.id);
     let nextIndex;
@@ -234,6 +327,8 @@ export const usePlayer = () => {
 
     playSong(playlist.value[nextIndex]);
     checkAndLoadMore();
+    // libera após pequeno atraso para evitar rajadas
+    setTimeout(() => { isAdvancing = false; }, 300);
   }
 
   function previous() {
@@ -297,10 +392,24 @@ export const usePlayer = () => {
   audio.addEventListener('ended', () => {
     (async () => {
       try {
-        await radio.markPlayed(Math.floor(duration.value || 0));
+        const dur = Number(duration.value || audio.duration || 0);
+        const cur = Number(audio.currentTime || 0);
+        const playedRatio = dur > 0 ? cur / dur : 1;
+
+        // Proteção: só avança se tocou a maior parte da faixa (evita falsos 'ended')
+        if (playedRatio < 0.95) {
+          try {
+            // Tenta retomar caso tenha sido um glitch de buffer/rede
+            await audio.play();
+            isPlaying.value = true;
+          } catch {}
+          return;
+        }
+
+        await radio.markPlayed(Math.floor(dur || 0));
         const item = await radio.fetchNext();
+        // Não chama playSong aqui; o watcher em radio.currentSong cuidará de iniciar a próxima
         if (item && (item as any).song) {
-          await playSong((item as any).song as any);
           return;
         }
       } catch {}
